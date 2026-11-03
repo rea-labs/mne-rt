@@ -38,6 +38,7 @@ from qtpy.QtWidgets import (
 )
 
 from mne_rt._logging import logger
+from mne_rt.viz._smoothing import check_smoothing, ema_step
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -140,14 +141,14 @@ class TopomapPlot(QMainWindow):
         Number of contour lines.  Set to ``0`` to disable.
     display_smoothing : float, default 1.0
         EMA factor applied to the per-channel band-power maps before
-        rendering.  ``1.0`` disables smoothing (raw per-window estimate
+        rendering, in ``(0, 1]``.  ``1.0`` disables smoothing (raw per-window estimate
         shown directly — good for artifact monitoring); lower values
         progressively smooth the spatial maps across consecutive windows.
     interpolate_bads : bool, default True
         Estimate the channels in ``info["bads"]`` from the good ones by
         spherical-spline interpolation, as :meth:`mne.Evoked.interpolate_bads`
-        does, and draw them marked with a cross. Their rows in the pushed data
-        are ignored. With ``False`` they are left out of the map.
+        does, and draw them like the other sensors. Their rows in the pushed
+        data are ignored. With ``False`` they are left out of the map.
 
         .. versionadded:: 1.3.0
     verbose : bool | str | None, default None
@@ -221,7 +222,7 @@ class TopomapPlot(QMainWindow):
         self._paused = False
         self._last_data: Optional[np.ndarray] = None
         self._visible_bands: list[str] = list(self._bands.keys())
-        self._display_alpha = float(np.clip(display_smoothing, 0.0, 1.0))
+        self._display_alpha = check_smoothing(display_smoothing)
         self._bp_ema: dict[str, np.ndarray] = {}
 
         # Detect channel type for plot_topomap
@@ -238,11 +239,6 @@ class TopomapPlot(QMainWindow):
             self._plot_info["bads"] = []
         else:
             logger.warning("TopomapPlot: no channel has a sensor position; nothing to draw.")
-        # Interpolated channels are marked with a cross. Fixed for the window's
-        # life, so built once rather than on every frame.
-        self._interp_mask = np.zeros(len(shown), dtype=bool)
-        self._interp_mask[len(self._topo_picks) :] = True
-        self._mask_params = dict(marker="x", markeredgecolor="w", markersize=6, markeredgewidth=1.5)
         # Rows of a window holding only the good channels (what mne-lsl's
         # get_data returns), in the full info: push() puts them back in place.
         bads = set(self._info["bads"])
@@ -632,10 +628,9 @@ class TopomapPlot(QMainWindow):
                 if band not in self._bp_ema:
                     self._bp_ema[band] = pw.copy()
                 else:
-                    self._bp_ema[band] = (
-                        self._display_alpha * pw + (1.0 - self._display_alpha) * self._bp_ema[band]
-                    )
-                band_powers[band] = self._bp_ema[band]
+                    # NaN-safe: one bad window used to blank a channel for good.
+                    self._bp_ema[band] = ema_step(self._bp_ema[band], pw, self._display_alpha)
+                band_powers[band] = np.where(np.isfinite(pw), self._bp_ema[band], np.nan)
 
         freeze = getattr(self, "_freeze_clim", False)
 
@@ -645,7 +640,10 @@ class TopomapPlot(QMainWindow):
                 continue
 
             if not freeze:
-                vmax = float(np.percentile(np.abs(powers), 97)) or 1e-20
+                # Over finite values: one NaN channel made the whole band's
+                # scale NaN (NaN is truthy, so `or` did not catch it).
+                finite = np.abs(powers[np.isfinite(powers)])
+                vmax = (float(np.percentile(finite, 97)) if finite.size else 0.0) or 1e-20
                 if self._cmap in ("RdBu_r", "RdYlBu_r", "bwr"):
                     vmin, vmax_use = -vmax, vmax
                 else:
@@ -672,8 +670,6 @@ class TopomapPlot(QMainWindow):
                     contours=self._contours,
                     res=32,
                     extrapolate="auto",
-                    mask=self._interp_mask if self._interp_mask.any() else None,
-                    mask_params=self._mask_params,
                 )
             except Exception as _e:
                 ax.text(
