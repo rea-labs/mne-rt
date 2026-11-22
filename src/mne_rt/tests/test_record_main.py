@@ -1044,3 +1044,94 @@ def test_display_scales_follow_the_zscored_units(tmp_path, array_info):
         monkey.undo()
         nf.save()
     assert captured["scales"]["sensor_power"] == 1.0
+
+
+# Here, not in viz/tests: those run after viewers are torn down, and the event
+# loop of a session started then runs their deferred deletes, which segfaults
+# (see viz/tests/conftest.py's _destroy_widgets).
+
+
+def _tiled_session(tmp_path, monkeypatch, **kwargs):
+    import mne
+
+    from mne_rt import rt_stream
+
+    seen = []
+    monkeypatch.setattr(rt_stream, "tile_windows", lambda windows: seen.append(list(windows)))
+    info = mne.create_info(["Fp1", "Fp2", "C3", "C4"], 256.0, "eeg")
+    nf = _make_rt_stream(tmp_path, montage="easycap-M1")
+    nf.connect_to_array(_make_array_data(info, duration=10.0), info, n_repeat=np.inf)
+    try:
+        nf.record_main(
+            duration=1.0,
+            winsize=0.5,
+            modality="sensor_power",
+            show_nf_signal=True,
+            show_raw_signal=True,
+            **kwargs,
+        )
+    finally:
+        nf.save()
+    return seen
+
+
+def test_record_main_tiles_its_windows_nf_first(tmp_path, monkeypatch):
+    (windows,) = _tiled_session(tmp_path, monkeypatch)
+    shown = [type(w).__name__ for w in windows if w is not None]  # None: not opened
+    assert shown == ["NFPlot", "RawPlot"]
+
+
+def test_record_main_can_leave_the_windows_where_they_open(tmp_path, monkeypatch):
+    assert _tiled_session(tmp_path, monkeypatch, arrange_windows=False) == []
+
+
+def _conn_session(tmp_path, monkeypatch, modality):
+    import mne
+
+    from mne_rt import rt_stream
+
+    pushes, made = [], []
+    real_init, real_push = rt_stream.ConnectivityPlot.__init__, rt_stream.ConnectivityPlot.push
+
+    def _init(self, *a, **k):
+        made.append(1)
+        real_init(self, *a, **k)
+
+    def _push(self, values):
+        pushes.append(values)
+        real_push(self, values)
+
+    monkeypatch.setattr(rt_stream.ConnectivityPlot, "__init__", _init)
+    monkeypatch.setattr(rt_stream.ConnectivityPlot, "push", _push)
+    names = ["F3", "F4", "C3", "C4"]
+    info = mne.create_info(names, 256.0, "eeg")
+    nf = _make_rt_stream(tmp_path, montage="easycap-M1")
+    nf.connect_to_array(_make_array_data(info, duration=20.0), info, n_repeat=np.inf)
+    try:
+        nf.record_main(
+            duration=4.0,
+            winsize=1.0,
+            modality=modality,
+            show_nf_signal=False,
+            show_raw_signal=False,
+            show_connectivity=True,
+            arrange_windows=False,
+        )
+    finally:
+        nf.save()
+    return nf, made, pushes
+
+
+def test_show_connectivity_feeds_the_viewer_each_window_s_pairs(tmp_path, monkeypatch):
+    nf, made, pushes = _conn_session(tmp_path, monkeypatch, "sensor_connectivity")
+    assert made == [1] and pushes
+    snap = pushes[-1]["sensor_connectivity"]
+    assert snap["labels"] == [("C3", "C4"), ("F3", "F4")]  # the default config's pairs
+    assert snap["value"] == pytest.approx(np.mean(snap["edges"]))
+    assert all(type(v) is float for v in nf.nf_data["sensor_connectivity"])
+
+
+def test_show_connectivity_without_a_connectivity_modality_only_warns(tmp_path, monkeypatch):
+    nf, made, pushes = _conn_session(tmp_path, monkeypatch, "sensor_power")
+    assert made == [] and pushes == []
+    assert len(nf.nf_data["sensor_power"]) > 0
