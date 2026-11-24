@@ -8,10 +8,18 @@ What's new
 Version 1.3.0
 --------------
 
-*unreleased*
+*2026-11-24*
 
 New features
 ^^^^^^^^^^^^
+
+- **EEG microstates as a modality.** ``microstates`` feeds back one metric of
+  one microstate per window (time coverage, mean duration, occurrences, GEV or
+  mean correlation): each sample of the band-passed, average-referenced window
+  is assigned to the template map it correlates with best, ignoring polarity,
+  as pycrostates backfits. The templates come as an array or a fitted
+  pycrostates ``ModKMeans``, and ``microstates@A``/``microstates@C`` feed back
+  two states at once. See :ref:`modality-microstates`.
 
 - **Graph learning from MNE-Connectivity.** ``sensor_graph`` and
   ``source_graph`` learn their graph with
@@ -25,11 +33,15 @@ New features
   (``record_main(show_connectivity=True)``, ``mne-rt run --connectivity``)
   shows the pairs each connectivity modality computes, which reached the
   screen before only as their mean in the NF trace: sensor pairs as edges on
-  the head, source pairs between ROIs on a circle, left hemisphere on the left,
-  coloured and sized by value, and each pair's value over the last 30 s beside
-  the modality's own. So it shows which connection drives the feedback. It is
-  an experimenter's window, off by default, and costs nothing extra: the
-  per-pair values were computed already.
+  MNE's head (:func:`mne.viz.plot_sensors`), source pairs on
+  MNE-Connectivity's circle plot of every ROI of the atlas, homologous ROIs
+  facing each other; each edge's colour and width follow its value, read on a
+  colour bar scaled to the values on show; and beside them each pair's value over
+  time, with the modality's own. A side panel, as RawPlot's, picks the
+  modality, the time window (10–120 s) and the pairs shown, and pauses it. So
+  it shows which connection drives the feedback. An experimenter's window, off
+  by default; it costs nothing extra, as the per-pair values were computed
+  already.
 
 - **The viewer windows fit the screen.** ``record_main`` tiles the windows it
   opens over the screen's free area, the NF window with the top row to itself,
@@ -111,6 +123,11 @@ New features
   ``True``): bad channels are estimated from the good ones by spherical-spline
   interpolation and drawn like the other sensors. Its ``push`` accepts a window
   of the good channels only, as ``StreamLSL.get_data`` returns by default.
+
+- **Tested on Linux, macOS and Windows**, on Python 3.11–3.14, and against both
+  the oldest dependency versions mne-rt allows and the coming ones (nightly
+  NumPy, SciPy, Matplotlib and MNE). This found the SciPy 2.0 and MNE 1.14
+  breakages fixed below.
 
 Bug fixes
 ^^^^^^^^^
