@@ -3,6 +3,59 @@
 What's new
 ==========
 
+.. _changes_1_4_0:
+
+Version 1.4.0
+--------------
+
+*unreleased*
+
+Documentation
+^^^^^^^^^^^^^
+
+- **A version switcher.** The documentation is published for each version,
+  as MNE's is: ``stable/`` (the latest release), ``dev/`` (``main``) and one
+  folder per release (``1.3/``), picked from the menu at the top of every
+  page. The development version says it is one, with a link to the stable
+  documentation. Links made before keep working: each page at the site's
+  root sends to the stable version of it.
+- The front page and the README present what 1.3 added: the connectivity
+  viewer, EEG microstates, learned graphs with MNE-Connectivity, the multiband
+  GEDAI denoiser and DSI headsets.
+
+.. _changes_1_3_1:
+
+Version 1.3.1
+--------------
+
+*2026-11-26*
+
+Bug fixes
+^^^^^^^^^
+
+- **mne-rt imports without a Qt binding.** ``pip install mne-rt`` installs no
+  Qt binding, but ``import mne_rt``, and so the ``mne-rt`` command, raised
+  pyqtgraph's ``ImportError`` without one. The viewers are now imported when
+  first used: a session without windows, the report and the CLI work without
+  Qt, and opening a window without a binding says to install
+  ``mne-rt[pyqt6]`` or ``mne-rt[pyside6]``. The installation instructions now
+  install one.
+- **No fooof notice on every import.** Importing mne-rt printed fooof's
+  ``DeprecationWarning`` that specparam replaces it, at every ``import mne_rt``
+  and every ``mne-rt`` command. fooof is now imported when an aperiodic fit is
+  made (``individual_peak_power``, ``argmax_freq``), without the notice.
+- **The connectivity viewer's time axis matches the other viewers.**
+  :class:`~mne_rt.viz.ConnectivityPlot` showed time before now (−60 to 0 s);
+  it now runs from 0 to the time window's length, the newest values at its
+  end, as :class:`~mne_rt.viz.NFPlot` and :class:`~mne_rt.viz.RawPlot` do.
+
+Documentation
+^^^^^^^^^^^^^
+
+- The :ref:`visualization` guide presents
+  :class:`~mne_rt.viz.ConnectivityPlot`, with a video, as it does the other
+  viewers.
+
 .. _changes_1_3_0:
 
 Version 1.3.0

@@ -18,8 +18,9 @@
 ---
 
 **MNE-RT** is an open-source Python library for **real-time M/EEG signal
-processing**, built on [MNE-Python](https://mne.tools) and
-[MNE-LSL](https://mne.tools/mne-lsl). It covers the full closed-loop pipeline —
+processing**, built on [MNE-Python](https://mne.tools),
+[MNE-LSL](https://mne.tools/mne-lsl) and
+[MNE-Connectivity](https://mne.tools/mne-connectivity). It covers the full closed-loop pipeline —
 from amplifier to 3-D brain display — in a single API designed for neurofeedback,
 BCI, and clinical or basic-science monitoring.
 
@@ -60,7 +61,7 @@ BIDS-compatible session saving, and a full CLI.
 | **22 NF modalities** | Band power, ERD/ERS, laterality, Hjorth, spectral centroid, microstates, CFC, connectivity, graph Laplacian — sensor and source space |
 | **10 adaptive protocols** | Z-score, threshold, percentile, staircase, operant, RL, sham, multi-band, and cross-session transfer |
 | **5 artifact correction methods** | ASR, adaptive LMS, GEDAI, ORICA, real-time Maxwell/SSS (MEG) |
-| **9 live visualisation windows** | Scrolling raw · NF signal · epoch overlays · scalp topo · 3-D brain · butterfly · ERP comparison · TFR heatmaps |
+| **10 live visualisation windows** | Scrolling raw · NF signal · epoch overlays · scalp topo · 3-D brain · butterfly · ERP comparison · TFR heatmaps · live connectivity |
 | **Feature combiners** | Weighted sum, geometric mean, z-scored norm, or any sklearn estimator |
 | **External feedback output** | OSC (Max/MSP, SuperCollider) and LSL outlet (PsychoPy, OpenViBE, BCI2000) |
 | **BIDS-compatible saving** | Session JSON + TSV with full metadata, artifact rate, and SNR |
@@ -70,31 +71,35 @@ BIDS-compatible session saving, and a full CLI.
 ## Installation
 
 ```bash
-pip install mne-rt                 # core package
-pip install "mne-rt[full]"         # + 3-D viz, dev tools, docs
+pip install "mne-rt[pyqt6]"        # with a Qt binding, for the live windows
+pip install "mne-rt[full,pyqt6]"   # + 3-D viz, dev tools, docs
 ```
+
+The live windows need a Qt binding: PyQt6 (`mne-rt[pyqt6]`) or PySide6
+(`mne-rt[pyside6]`). `pip install mne-rt` alone installs none, which suits a
+session without windows, analysis and the CLI.
 
 <details>
 <summary>Other installation methods</summary>
 
 **conda / mamba ([conda-forge](https://anaconda.org/conda-forge/mne-rt)):**
 ```bash
-mamba install -c conda-forge mne-rt
+mamba install -c conda-forge mne-rt pyqt6
 # or, with plain conda:
-conda install -c conda-forge mne-rt
+conda install -c conda-forge mne-rt pyqt6
 ```
 
 **uv (fast Rust-based installer):**
 ```bash
-uv pip install mne-rt
-uv pip install "mne-rt[full]"
+uv pip install "mne-rt[pyqt6]"
+uv pip install "mne-rt[full,pyqt6]"
 ```
 
 **Development install from source:**
 ```bash
 git clone https://github.com/mne-rt-org/mne-rt.git
 cd mne-rt
-pip install -e ".[dev]"
+pip install -e ".[dev,pyqt6]"
 ```
 
 </details>
